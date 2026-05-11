@@ -1,0 +1,46 @@
+MLB CAREER LONGEVITY
+PREDICTOR
+Avery Bishop · Distributed Systems for
+Data Science
+New College of Florida · Spring 2026
+1 · PREDICTION QUESTION
+Given an MLB position player's season-level performance statistics and cumulative injury history, how many
+years does that player have remaining in their professional career?
+2 · DATA SOURCE
+The dataset was constructed from Lahman's Baseball Database and MLB injury records as part of a prior
+undergraduate thesis on career survival analysis. It contains 63,956 player-season rows spanning MLB
+position players from 1871 through 2024, with 44 features covering batting performance (wOBA, PA, hits, home
+runs), injury metrics (total injuries, average severity, missed seasons), and derived career aggregates. The
+dataset is a one-time static load — ingested into AWS S3 as the bronze layer and not refreshed automatically.
+3 · PIPELINE ARCHITECTURE
+Stage Service Description
+Bronze AWS S3 Raw CSV stored in S3 object store
+Ingest GitHub → Databricks PySpark reads raw CSV into Spark DataFrame
+Silver Databricks PySpark Cleaned, typed, validated; nulls dropped
+Gold Databricks PySpark Feature table exported; model trained here
+ML Training MLflow + scikit-learn Random Forest tracked in MLflow registry
+Artifact AWS S3 model.pkl + gold CSV uploaded to S3
+Serving FastAPI on AWS EC2 Loads model from S3; REST prediction API
+UI Streamlit Cloud Public app; calls EC2 endpoint for results
+4 · MODEL APPROACH
+A Random Forest Regressor (100 estimators, max depth 10, random state 42) was trained on the gold feature
+table using scikit-learn and tracked in Databricks MLflow. Twelve features were used: age, wOBA, lagged
+wOBA, lagged plate appearances, career plate appearances, career games, years in league, injuries this
+season, average injury severity, career injuries, career severity, and missed previous year. The target variable
+is years_left — the number of seasons a player continued after a given season. The model was evaluated on a
+held-out 20% test set, achieving a Mean Absolute Error of 2.53 years and an R² of 0.363. These metrics
+reflect the inherent unpredictability of career length but represent a meaningful signal above baseline for
+front-office decision support.
+5 · WHAT I LEARNED
+The hardest part of this project was not the modeling — it was the infrastructure. Databricks Community Edition
+imposed significant restrictions that were not apparent until mid-build: S3 direct mounting, DBFS writes, and
+Delta Lake persistence were all blocked, forcing creative workarounds at each stage. The Lambda serving layer
+was abandoned entirely after cross-platform packaging failures (Windows-compiled numpy binaries are
+incompatible with Lambda's Linux runtime), and replaced with a FastAPI server on EC2. If rebuilding, I would
+start with a full-tier Databricks trial to avoid the Community Edition ceiling, use Docker from the start for
+reproducible packaging, and allocate more time to feature engineering — particularly position-specific aging
+curves and park factor adjustments — which would likely improve model performance meaningfully beyond the
+current R² of 0.363.
+Live App: https://averybishop-mlb-career-predictor-app.streamlit.app/
+eer-predictor API: http://54.210.153.26:8000
+Repo: https://github.com/a-bishop25/mlb_career_pipeline-DS4DS-
