@@ -1,8 +1,14 @@
-import streamlit as st
-import requests
-import plotly.graph_objects as go
+from pathlib import Path
 
-API_URL = "http://100.54.195.185:8000"
+import plotly.graph_objects as go
+import streamlit as st
+
+from mlb_data import (
+    PlayerNotFoundError,
+    PlayerOutputUnavailableError,
+    get_player_record,
+    load_player_data,
+)
 
 st.set_page_config(
     page_title="MLB Career Longevity Predictor",
@@ -10,6 +16,12 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+
+
+@st.cache_data(show_spinner="Loading player history…")
+def cached_player_data():
+    """Load the checked-in player data once per Streamlit cache cycle."""
+    return load_player_data(Path(__file__).with_name("sdm2_cum_inj.csv"))
 
 st.markdown("""
 <style>
@@ -343,8 +355,8 @@ st.markdown("""
 <div class="hero">
     <div class="hero-eyebrow">Advanced Analytics · Machine Learning · Career Intelligence</div>
     <div class="hero-title">MLB Career<br><span>Longevity</span> Predictor</div>
-    <div class="hero-subtitle">Enter any MLB position player to see their full career trajectory, performance arc, and data-driven projection of years remaining.</div>
-    <div class="hero-badge">⚾ Powered by Random Forest · Trained on 60,000+ Player Seasons</div>
+    <div class="hero-subtitle">Enter any MLB position player to see their full career trajectory, performance arc, and precomputed career-longevity output.</div>
+    <div class="hero-badge">⚾ Self-Contained Demo · Cached Local Player Data</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -371,17 +383,13 @@ PLOT_LAYOUT = dict(
 )
 
 if search and first_name and last_name:
-    with st.spinner(f"Pulling career file for {first_name.title()} {last_name.title()}..."):
+    with st.spinner(f"Loading career file for {first_name.title()} {last_name.title()}..."):
         try:
-            response = requests.get(
-                f"{API_URL}/player/{first_name.lower().strip()}/{last_name.lower().strip()}",
-                timeout=30
+            data = get_player_record(
+                cached_player_data(),
+                first_name,
+                last_name,
             )
-            if response.status_code == 404:
-                st.error("Player not found. Check spelling — names are case-insensitive.")
-                st.stop()
-
-            data = response.json()
             career = data["career_history"]
             name = f"{data['nameFirst'].title()} {data['nameLast'].title()}"
             prediction = data["prediction"]
@@ -428,7 +436,7 @@ if search and first_name and last_name:
             elif prediction >= 2:
                 vclass, vtitle, vbody = "limited", "Limited Years Remaining", f"{name} is in the final chapter of their career, with an estimated {prediction} seasons left."
             else:
-                vclass, vtitle, vbody = "ending", "Career Nearing Its End", f"The model projects {name} has fewer than 2 seasons remaining based on their performance and injury profile."
+                vclass, vtitle, vbody = "ending", "Career Nearing Its End", f"The precomputed output gives {name} fewer than 2 seasons remaining based on their recorded career profile."
 
             st.markdown(f"""
             <div class="verdict {vclass}">
@@ -560,8 +568,12 @@ if search and first_name and last_name:
             st.plotly_chart(fig4, use_container_width=True, config={"displayModeBar": False})
             st.markdown('</div>', unsafe_allow_html=True)
 
-        except Exception as e:
-            st.error(f"API Error: {e}")
+        except PlayerNotFoundError:
+            st.error("Player not found. Check spelling — names are case-insensitive.")
+        except PlayerOutputUnavailableError as error:
+            st.error(str(error))
+        except Exception as error:
+            st.error(f"Could not load the local player data: {error}")
 
 elif search:
     st.warning("Please enter both first and last name.")
@@ -569,8 +581,7 @@ elif search:
 # ── Footer ────────────────────────────────────────────────
 st.markdown("""
 <div class="footer">
-    Random Forest Regressor &nbsp;·&nbsp; MAE 2.53 Years &nbsp;·&nbsp; R² 0.363 &nbsp;·&nbsp;
-    Pipeline: S3 → Databricks Spark → MLflow → EC2 FastAPI &nbsp;·&nbsp;
-    Trained on 47,991 MLB Player Seasons
+    Precomputed Project Output &nbsp;·&nbsp; Cached Local Dataset &nbsp;·&nbsp;
+    No External API or Cloud Credentials Required &nbsp;·&nbsp; 63,956 Player-Season Rows
 </div>
 """, unsafe_allow_html=True)
