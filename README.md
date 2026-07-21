@@ -2,13 +2,45 @@
 
 **Avery Bishop** · Distributed Systems for Data Science · New College of Florida · Spring 2026
 
-## Live Application
-🔗 [MLB Career Longevity Predictor](https://averybishop-mlb-career-predictor-app.streamlit.app/)
+## Working Demo
+
+The checked-in Streamlit app now runs as a self-contained demonstration. It
+loads `sdm2_cum_inj.csv` locally, caches the prepared player-season data with
+Streamlit, and displays the dataset's recorded `years_left` output. It does not
+require AWS credentials, an EC2 API, S3 access, or the original model artifact.
+
+The original deployment URL was:
+[MLB Career Longevity Predictor](https://averybishop-mlb-career-predictor-app.streamlit.app/)
 
 ## What It Predicts
-Given any MLB position player's name, the application retrieves their full career history and predicts how many years they have remaining in their MLB career using a Random Forest regression model trained on 47,991 player-seasons of performance and injury data.
+Given an MLB position player's name, the demonstration retrieves their career
+history from the bundled dataset and displays the precomputed `years_left`
+output along with performance and injury charts.
 
-## Pipeline Architecture
+## Run Locally
+
+```powershell
+python -m pip install -r requirements.txt
+python -m streamlit run app.py
+```
+
+Try `Mike Trout` or another position player present in the dataset.
+
+## Deploy on Streamlit Community Cloud
+
+1. Push this repository to GitHub.
+2. In Streamlit Community Cloud, create an app from the repository.
+3. Select `app.py` as the entry point and deploy.
+
+No secrets are required. Ensure `app.py`, `mlb_data.py`, `requirements.txt`, and
+`sdm2_cum_inj.csv` are committed to the repository.
+
+## Original Student Pipeline Architecture
+
+The following describes the original distributed project. The working demo
+uses the cached local path described above.
+
+```text
 Raw Data (GitHub CSV)
 ↓
 S3 (Bronze Layer — raw CSV storage)
@@ -24,6 +56,7 @@ S3 (Model artifact + gold CSV storage)
 EC2 FastAPI (Live prediction endpoint)
 ↓
 Streamlit Cloud (Public web application)
+```
 
 ## Tech Stack
 | Layer | Technology |
@@ -45,24 +78,24 @@ Streamlit Cloud (Public web application)
 mlb-career-predictor/
 ├── app.py                        # Streamlit frontend
 ├── api.py                        # FastAPI backend (EC2)
-├── test_project.py               # Instructor test script
+├── mlb_data.py                   # Cached-demo data loading and lookup
+├── tests/test_mlb_data.py        # Local data and lookup tests
+├── testing_app.py                # Original external API test script
 ├── requirements.txt              # Streamlit dependencies
 ├── sdm2_cum_inj.csv             # Raw dataset (bronze layer)
 ├── mlb_career_predictions.ipynb  # Databricks pipeline notebook
 └── README.md
 
-## Running the Test Script
+## Running the Self-Contained Tests
 ```bash
-pip install requests
-python test_project.py
+python -m pytest -v
 ```
 
-The script verifies three things:
-1. The API health check endpoint responds
-2. Player lookup returns career history and prediction
-3. Direct prediction endpoint returns a valid result
+The tests verify local CSV loading, case-insensitive player lookup,
+same-name player selection, missing-data handling, and a real Mike Trout lookup.
 
 ## Notes
-- The EC2 prediction API (`http://54.210.153.26:8000`) must be running during grading
+- `testing_app.py` and `api.py` are retained as original project artifacts; they
+  are not used by the self-contained Streamlit demo.
 - AWS credentials in `api.py` and the Databricks notebook have been replaced with placeholders
 - Databricks Community Edition restrictions prevented Delta Lake persistence and direct S3 mounting — the medallion architecture is implemented via in-memory Spark DataFrames with S3 used for bronze storage and model/data artifact export
