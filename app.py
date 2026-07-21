@@ -6,7 +6,8 @@ import streamlit as st
 from mlb_data import (
     PlayerNotFoundError,
     PlayerOutputUnavailableError,
-    get_player_record,
+    build_player_options,
+    get_player_record_by_id,
     load_player_data,
 )
 
@@ -23,6 +24,12 @@ def cached_player_data():
     """Load the checked-in player data once per Streamlit cache cycle."""
     return load_player_data(Path(__file__).with_name("sdm2_cum_inj.csv"))
 
+
+@st.cache_data(show_spinner=False)
+def cached_player_options():
+    """Build the valid player choices once per Streamlit cache cycle."""
+    return build_player_options(cached_player_data())
+
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Bebas+Neue&family=Source+Serif+4:ital,wght@0,300;0,600;1,300&display=swap');
@@ -30,8 +37,10 @@ st.markdown("""
 /* ── Reset & Base ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-html, body, .stApp {
-    background-color: #0a1628;
+html, body { background-color: #050b14; }
+
+.stApp {
+    background-color: #050b14;
     background-image:
         radial-gradient(ellipse at 20% 50%, rgba(185,28,28,0.08) 0%, transparent 60%),
         radial-gradient(ellipse at 80% 20%, rgba(29,78,140,0.15) 0%, transparent 60%),
@@ -42,7 +51,17 @@ html, body, .stApp {
 
 /* ── Hide Streamlit chrome ── */
 #MainMenu, footer, header, .stDeployButton { display: none !important; }
-.block-container { padding: 0 !important; max-width: 100% !important; }
+.block-container {
+    width: calc(100% - 48px) !important;
+    max-width: 1440px !important;
+    margin: 24px auto !important;
+    padding: 0 !important;
+    background: #0a1628;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.35);
+    overflow: hidden;
+}
 section[data-testid="stSidebar"] { display: none; }
 
 /* ── Hero Banner ── */
@@ -130,28 +149,59 @@ section[data-testid="stSidebar"] { display: none; }
     text-transform: uppercase;
 }
 
-/* ── Streamlit input overrides ── */
-.stTextInput input {
-    background: rgba(255,255,255,0.05) !important;
-    border: 1px solid rgba(255,255,255,0.15) !important;
-    border-radius: 3px !important;
-    color: #f5f0e8 !important;
-    font-family: 'Source Serif 4', serif !important;
-    font-size: 1rem !important;
-    padding: 0.6rem 1rem !important;
-    transition: border-color 0.2s ease !important;
-}
-
-.stTextInput input:focus {
-    border-color: #c41e3a !important;
-    box-shadow: 0 0 0 2px rgba(196,30,58,0.2) !important;
-}
-
-.stTextInput label {
+/* ── Streamlit select overrides ── */
+.stSelectbox label {
     font-family: 'Bebas Neue', sans-serif !important;
     letter-spacing: 0.15em !important;
     font-size: 0.8rem !important;
     color: #a0aec0 !important;
+}
+
+.stSelectbox div[data-baseweb="select"] > div {
+    background: #111f36 !important;
+    border: 1px solid rgba(255,255,255,0.24) !important;
+    border-radius: 3px !important;
+}
+
+.stSelectbox div[data-baseweb="select"] > div:focus-within {
+    border-color: #c41e3a !important;
+    box-shadow: 0 0 0 2px rgba(196,30,58,0.25) !important;
+}
+
+.stSelectbox div[data-baseweb="select"] *,
+.stSelectbox div[data-baseweb="select"] input {
+    color: #f5f0e8 !important;
+    -webkit-text-fill-color: #f5f0e8 !important;
+    font-family: 'Source Serif 4', serif !important;
+    font-size: 1rem !important;
+    caret-color: #f5f0e8 !important;
+}
+
+.stSelectbox input::placeholder {
+    color: #a0aec0 !important;
+    -webkit-text-fill-color: #a0aec0 !important;
+    opacity: 1 !important;
+}
+
+div[role="listbox"], ul[role="listbox"] {
+    background: #111f36 !important;
+    border: 1px solid rgba(255,255,255,0.18) !important;
+}
+
+div[role="option"] {
+    background: #111f36 !important;
+    color: #f5f0e8 !important;
+    -webkit-text-fill-color: #f5f0e8 !important;
+}
+
+div[role="option"] * {
+    color: #f5f0e8 !important;
+    -webkit-text-fill-color: #f5f0e8 !important;
+}
+
+div[role="option"]:hover,
+div[role="option"][aria-selected="true"] {
+    background: #263a5c !important;
 }
 
 .stButton button {
@@ -347,6 +397,14 @@ hr { display: none !important; }
 
 /* ── Plotly transparent bg fix ── */
 .js-plotly-plot { border-radius: 4px; overflow: hidden; }
+
+@media (max-width: 700px) {
+    .block-container {
+        width: calc(100% - 16px) !important;
+        margin: 8px auto !important;
+        border-radius: 7px;
+    }
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -362,12 +420,19 @@ st.markdown("""
 
 # ── Search ────────────────────────────────────────────────
 st.markdown('<div class="search-section">', unsafe_allow_html=True)
-col1, col2, col3 = st.columns([2, 2, 1])
+player_options = cached_player_options()
+player_ids = [player_id for player_id, _ in player_options]
+player_labels = dict(player_options)
+col1, col2 = st.columns([4, 1])
 with col1:
-    first_name = st.text_input("FIRST NAME", placeholder="e.g. mike")
+    selected_player_id = st.selectbox(
+        "SELECT PLAYER",
+        options=player_ids,
+        index=None,
+        placeholder="Start typing a player name…",
+        format_func=player_labels.get,
+    )
 with col2:
-    last_name = st.text_input("LAST NAME", placeholder="e.g. trout")
-with col3:
     st.markdown("<br>", unsafe_allow_html=True)
     search = st.button("SEARCH PLAYER", use_container_width=True)
 st.markdown('</div>', unsafe_allow_html=True)
@@ -382,13 +447,13 @@ PLOT_LAYOUT = dict(
     hoverlabel=dict(bgcolor="#1a2a4a", font_color="#f5f0e8", font_family="Source Serif 4, serif")
 )
 
-if search and first_name and last_name:
-    with st.spinner(f"Loading career file for {first_name.title()} {last_name.title()}..."):
+if search and selected_player_id:
+    selected_player_name = player_labels[selected_player_id]
+    with st.spinner(f"Loading career file for {selected_player_name}..."):
         try:
-            data = get_player_record(
+            data = get_player_record_by_id(
                 cached_player_data(),
-                first_name,
-                last_name,
+                selected_player_id,
             )
             career = data["career_history"]
             name = f"{data['nameFirst'].title()} {data['nameLast'].title()}"
@@ -576,7 +641,7 @@ if search and first_name and last_name:
             st.error(f"Could not load the local player data: {error}")
 
 elif search:
-    st.warning("Please enter both first and last name.")
+    st.warning("Please select a player.")
 
 # ── Footer ────────────────────────────────────────────────
 st.markdown("""
