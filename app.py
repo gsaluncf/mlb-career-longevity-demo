@@ -60,7 +60,6 @@ html, body { background-color: #050b14; }
     border: 1px solid rgba(255,255,255,0.1);
     border-radius: 12px;
     box-shadow: 0 24px 60px rgba(0,0,0,0.35);
-    overflow: hidden;
 }
 section[data-testid="stSidebar"] { display: none; }
 

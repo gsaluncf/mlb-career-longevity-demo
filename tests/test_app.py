@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 from streamlit.testing.v1 import AppTest
@@ -23,3 +24,11 @@ def test_styles_current_streamlit_combobox_markup_for_contrast():
 
     assert '.stSelectbox div[role="group"]' in app_source
     assert '.stSelectbox input[role="combobox"]' in app_source
+
+
+def test_outer_frame_does_not_clip_populated_results():
+    app_source = (Path(__file__).parents[1] / "app.py").read_text(encoding="utf-8")
+    frame_rule = re.search(r"\.block-container\s*\{(?P<body>.*?)\}", app_source, re.DOTALL)
+
+    assert frame_rule is not None
+    assert "overflow: hidden" not in frame_rule.group("body")
