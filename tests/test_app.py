@@ -16,3 +16,10 @@ def test_searches_non_trout_player_from_selector():
     assert not app.exception
     assert not app.error
     assert any("Aaron Judge" in element.value for element in app.markdown)
+
+
+def test_styles_current_streamlit_combobox_markup_for_contrast():
+    app_source = (Path(__file__).parents[1] / "app.py").read_text(encoding="utf-8")
+
+    assert '.stSelectbox div[role="group"]' in app_source
+    assert '.stSelectbox input[role="combobox"]' in app_source

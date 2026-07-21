@@ -157,24 +157,37 @@ section[data-testid="stSidebar"] { display: none; }
     color: #a0aec0 !important;
 }
 
-.stSelectbox div[data-baseweb="select"] > div {
+.stSelectbox div[data-baseweb="select"] > div,
+.stSelectbox div[role="group"] {
     background: #111f36 !important;
     border: 1px solid rgba(255,255,255,0.24) !important;
     border-radius: 3px !important;
 }
 
-.stSelectbox div[data-baseweb="select"] > div:focus-within {
+.stSelectbox div[data-baseweb="select"] > div:focus-within,
+.stSelectbox div[role="group"]:focus-within {
     border-color: #c41e3a !important;
     box-shadow: 0 0 0 2px rgba(196,30,58,0.25) !important;
 }
 
 .stSelectbox div[data-baseweb="select"] *,
-.stSelectbox div[data-baseweb="select"] input {
+.stSelectbox div[data-baseweb="select"] input,
+.stSelectbox input[role="combobox"] {
     color: #f5f0e8 !important;
     -webkit-text-fill-color: #f5f0e8 !important;
     font-family: 'Source Serif 4', serif !important;
     font-size: 1rem !important;
     caret-color: #f5f0e8 !important;
+}
+
+.stSelectbox input[role="combobox"] {
+    background: transparent !important;
+}
+
+.stSelectbox div[role="group"] button,
+.stSelectbox div[role="group"] svg {
+    color: #f5f0e8 !important;
+    fill: #f5f0e8 !important;
 }
 
 .stSelectbox input::placeholder {
