@@ -6,7 +6,9 @@ import pytest
 from mlb_data import (
     PlayerNotFoundError,
     PlayerOutputUnavailableError,
+    build_player_options,
     get_player_record,
+    get_player_record_by_id,
     load_player_data,
 )
 
@@ -81,3 +83,19 @@ def test_checked_in_dataset_supports_demo_lookup():
     assert result["seasons_played"] > 0
     assert result["prediction"] >= 0
     assert result["career_history"]
+
+
+def test_player_options_are_sorted_and_disambiguate_duplicate_names():
+    options = build_player_options(sample_data())
+
+    assert options == [
+        ("old01", "Sam Lee (2000)"),
+        ("new01", "Sam Lee (2022–2023)"),
+    ]
+
+
+def test_player_id_lookup_returns_exact_identity():
+    result = get_player_record_by_id(sample_data(), "old01")
+
+    assert result["playerID"] == "old01"
+    assert result["latest_season"] == 2000
